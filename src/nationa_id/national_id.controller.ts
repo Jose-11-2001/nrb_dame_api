@@ -13,7 +13,7 @@ import {
   BadRequestException
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { Response } from 'express';
+import type { Response } from 'express';
 import { NationalIdService } from './national_id.service';
 import { CreateNationalIdDto } from './dto/create-national_id.dto';
 

@@ -6,22 +6,22 @@ export class VerificationLog {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ name: 'national_id_application_id' })
+  @Column()
   nationalIdApplicationId: string;
 
   @Column()
   action: string;
 
-  @Column({ name: 'performed_by' })
+  @Column()
   performedBy: string;
 
-  @CreateDateColumn({ name: 'performed_at' })
+  @CreateDateColumn()
   performedAt: Date;
 
   @Column({ nullable: true, type: 'text' })
   notes: string;
 
   @ManyToOne(() => NationalIdApplication, (app: NationalIdApplication) => app.verificationLogs, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'national_id_application_id' })
+  @JoinColumn({ name: 'nationalIdApplicationId' })
   nationalIdApplication: NationalIdApplication;
 }

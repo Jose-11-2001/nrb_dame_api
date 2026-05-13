@@ -1,4 +1,3 @@
-// src/nationa_id/entities/supporting-document.entity.ts
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
 import { NationalIdApplication } from './national_id.entity';
 
@@ -7,25 +6,25 @@ export class SupportingDocument {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ name: 'document_type' })
+  @Column()
   documentType: string;
 
-  @Column({ name: 'document_name' })
+  @Column()
   documentName: string;
 
-  @Column({ name: 'document_url' })
+  @Column()
   documentUrl: string;
 
   @Column({ nullable: true })
   score: number;
 
-  @CreateDateColumn({ name: 'uploaded_at' })
+  @CreateDateColumn()
   uploadedAt: Date;
 
-  @Column({ name: 'national_id_application_id', nullable: true })
-  nationalIdApplicationId: string;
-
   @ManyToOne(() => NationalIdApplication, (app: NationalIdApplication) => app.supportingDocuments, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'national_id_application_id' })
+  @JoinColumn({ name: 'nationalIdApplicationId' })
   nationalIdApplication: NationalIdApplication;
+
+  @Column({ nullable: true })
+  nationalIdApplicationId: string;
 }

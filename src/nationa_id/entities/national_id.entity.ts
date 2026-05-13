@@ -1,4 +1,3 @@
-// src/nationa_id/entities/national-id.entity.ts
 import { 
   Entity, 
   Column, 
@@ -37,20 +36,20 @@ export class NationalIdApplication {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ name: 'application_number', unique: true })
+  @Column({ unique: true })
   applicationNumber: string;
 
-  @CreateDateColumn({ name: 'created_at' })
+  @CreateDateColumn()
   createdAt: Date;
 
-  @UpdateDateColumn({ name: 'updated_at' })
+  @UpdateDateColumn()
   updatedAt: Date;
 
   // Applicant Details
-  @Column({ name: 'first_name' })
+  @Column()
   firstName: string;
 
-  @Column({ name: 'other_names', nullable: true })
+  @Column({ nullable: true })
   otherNames: string;
 
   @Column()
@@ -59,142 +58,142 @@ export class NationalIdApplication {
   @Column()
   nationality: string;
 
-  @Column({ name: 'second_nationality', nullable: true })
+  @Column({ nullable: true })
   secondNationality: string;
 
-  @Column({ name: 'date_of_birth', type: 'date' })
+  @Column({ type: 'date' })
   dateOfBirth: Date;
 
   @Column({ type: 'varchar' })
   gender: string;
 
-  @Column({ name: 'district_of_birth' })
+  @Column()
   districtOfBirth: string;
 
-  @Column({ name: 'ta_of_birth' })
+  @Column()
   taOfBirth: string;
 
-  @Column({ name: 'village_of_birth' })
+  @Column()
   villageOfBirth: string;
 
-  @Column({ name: 'birth_certificate_no', nullable: true })
+  @Column({ nullable: true })
   birthCertificateNo: string;
 
-  @Column({ name: 'marital_status', type: 'varchar' })
+  @Column({ type: 'varchar' })
   maritalStatus: string;
 
-  @Column({ name: 'eye_color', nullable: true })
+  @Column({ nullable: true })
   eyeColor: string;
 
   @Column({ type: 'decimal', precision: 3, scale: 2, nullable: true })
   height: number;
 
-  @Column({ name: 'mobile_phone', nullable: true })
+  @Column({ nullable: true })
   mobilePhone: string;
 
-  @Column({ name: 'passport_no', nullable: true })
+  @Column({ nullable: true })
   passportNo: string;
 
   @Column({ nullable: true, type: 'text' })
   disability: string;
 
   // Addresses
-  @Column({ name: 'residential_district' })
+  @Column()
   residentialDistrict: string;
 
-  @Column({ name: 'residential_ta' })
+  @Column()
   residentialTA: string;
 
-  @Column({ name: 'residential_village' })
+  @Column()
   residentialVillage: string;
 
-  @Column({ name: 'permanent_district' })
+  @Column()
   permanentDistrict: string;
 
-  @Column({ name: 'permanent_ta' })
+  @Column()
   permanentTA: string;
 
-  @Column({ name: 'permanent_village' })
+  @Column()
   permanentVillage: string;
 
   // Parents Details
-  @Column({ name: 'mother_id_no', nullable: true })
+  @Column({ nullable: true })
   motherIdNo: string;
 
-  @Column({ name: 'mother_full_name' })
+  @Column()
   motherFullName: string;
 
-  @Column({ name: 'mother_nationality' })
+  @Column()
   motherNationality: string;
 
-  @Column({ name: 'mother_district' })
+  @Column()
   motherDistrict: string;
 
-  @Column({ name: 'mother_ta' })
+  @Column()
   motherTA: string;
 
-  @Column({ name: 'mother_village' })
+  @Column()
   motherVillage: string;
 
-  @Column({ name: 'father_id_no', nullable: true })
+  @Column({ nullable: true })
   fatherIdNo: string;
 
-  @Column({ name: 'father_full_name' })
+  @Column()
   fatherFullName: string;
 
-  @Column({ name: 'father_nationality' })
+  @Column()
   fatherNationality: string;
 
-  @Column({ name: 'father_district' })
+  @Column()
   fatherDistrict: string;
 
-  @Column({ name: 'father_ta' })
+  @Column()
   fatherTA: string;
 
-  @Column({ name: 'father_village' })
+  @Column()
   fatherVillage: string;
 
   // Witnesses
-  @Column({ name: 'first_witness_id_no' })
+  @Column()
   firstWitnessIdNo: string;
 
-  @Column({ name: 'first_witness_signature', nullable: true, type: 'text' })
+  @Column({ nullable: true, type: 'text' })
   firstWitnessSignature: string;
 
-  @Column({ name: 'second_witness_id_no' })
+  @Column()
   secondWitnessIdNo: string;
 
-  @Column({ name: 'second_witness_signature', nullable: true, type: 'text' })
+  @Column({ nullable: true, type: 'text' })
   secondWitnessSignature: string;
 
   // Verification
-  @Column({ name: 'applicant_signature', nullable: true, type: 'text' })
+  @Column({ nullable: true, type: 'text' })
   applicantSignature: string;
 
-  @Column({ name: 'application_date', type: 'timestamp' })
+  @Column({ type: 'timestamp' })
   applicationDate: Date;
 
-  @Column({ name: 'village_head_id_no', nullable: true })
+  @Column({ nullable: true })
   villageHeadIdNo: string;
 
-  @Column({ name: 'village_head_signature', nullable: true, type: 'text' })
+  @Column({ nullable: true, type: 'text' })
   villageHeadSignature: string;
 
-  @Column({ name: 'village_head_stamp', nullable: true, type: 'text' })
+  @Column({ nullable: true, type: 'text' })
   villageHeadStamp: string;
 
   // Scoring System
-  @Column({ name: 'citizenship_score', default: 0 })
+  @Column({ default: 0 })
   citizenshipScore: number;
 
-  @Column({ name: 'is_eligible', default: false })
+  @Column({ default: false })
   isEligible: boolean;
 
   // Status
   @Column({ type: 'varchar', default: 'PENDING' })
   status: string;
 
-  @Column({ name: 'rejection_reason', nullable: true, type: 'text' })
+  @Column({ nullable: true, type: 'text' })
   rejectionReason: string;
 
   @OneToMany(() => SupportingDocument, (doc: SupportingDocument) => doc.nationalIdApplication)
