@@ -1,8 +1,9 @@
+
 import { Controller, Post, Get, Put, Body, Param, Query } from '@nestjs/common';
 import { DeathCertificateService } from './death-certificate.service';
 import { CreateDeathCertificateDto } from './dto/create-death.dto';
 
-@Controller('api/v1/death-certificate')
+@Controller('v1/death-certificate') 
 export class DeathCertificateController {
   constructor(private readonly deathService: DeathCertificateService) {}
 

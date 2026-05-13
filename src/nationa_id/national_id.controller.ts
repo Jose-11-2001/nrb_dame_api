@@ -1,3 +1,4 @@
+
 import { 
   Controller, 
   Post, 
@@ -17,7 +18,7 @@ import type { Response } from 'express';
 import { NationalIdService } from './national_id.service';
 import { CreateNationalIdDto } from './dto/create-national_id.dto';
 
-@Controller('api/v1/national-id')
+@Controller('v1/national-id')  // Changed: removed 'api/' since global prefix adds it
 export class NationalIdController {
   constructor(private readonly nationalIdService: NationalIdService) {}
 
