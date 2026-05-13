@@ -48,7 +48,7 @@ export class NationalIdService {
       citizenshipScore,
       isEligible,
       status: isEligible ? ApplicationStatus.VERIFIED : ApplicationStatus.PENDING,
-      applicationDate: new Date(),
+      applicationDate: new Date(), // Auto-set current date
     });
 
     const savedApplication = await this.nationalIdRepo.save(application);
@@ -208,7 +208,7 @@ export class NationalIdService {
   }
 
   private async generateExcelReport(data: any[]) {
-    // Implement Excel generation using exceljs
+    // Simple implementation - you can expand this
     const ExcelJS = require('exceljs');
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet('National ID Applications');
