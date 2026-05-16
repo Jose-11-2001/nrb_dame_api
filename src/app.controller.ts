@@ -1,21 +1,23 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, Req, Res } from '@nestjs/common';
+import { Request, Response } from 'express';
 
 @Controller()
 export class AppController {
   @Get()
-  root() {
-    return { 
+  root(@Req() req: Request, @Res() res: Response) {
+    return res.json({
       message: 'NestJS API is running on Vercel!',
       status: 'online',
-      timestamp: new Date().toISOString()
-    };
+      timestamp: new Date().toISOString(),
+      path: req.url
+    });
   }
 
   @Get('health')
-  health() {
-    return { 
-      status: 'ok', 
-      timestamp: new Date().toISOString() 
-    };
+  health(@Res() res: Response) {
+    return res.json({
+      status: 'ok',
+      timestamp: new Date().toISOString()
+    });
   }
 }
