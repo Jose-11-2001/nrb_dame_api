@@ -1,5 +1,5 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
-import { NationalIdApplication } from './national_id.entity';
+import { NationalIdApplication } from './nationalIdApplication.entity';
 
 @Entity('verification_logs')
 export class VerificationLog {

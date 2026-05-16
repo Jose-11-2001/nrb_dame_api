@@ -157,10 +157,10 @@ export class CreateNationalIdDto {
   fatherVillage: string;
 
   @IsString()
-  @Length(10, 15)
+  @Length(8, 15)
   firstWitnessIdNo: string;
 
   @IsString()
-  @Length(10, 15)
+  @Length(8, 15)
   secondWitnessIdNo: string;
 }

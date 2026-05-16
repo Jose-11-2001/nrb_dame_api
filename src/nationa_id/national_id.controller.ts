@@ -11,14 +11,16 @@ import {
   UploadedFile,
   Res,
   StreamableFile,
-  BadRequestException
+  BadRequestException,
+  UseGuards
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
-import { NationalIdService } from './national_id.service';
-import { CreateNationalIdDto } from './dto/create-national_id.dto';
+import { NationalIdService } from '../nationa_id/national_id.service';
+import { CreateNationalIdDto } from '../nationa_id/dto/create-national_id.dto';
+import { ApiKeyGuard } from '../auth/api-key.guard';
 
-@Controller('v1/national-id')  // Changed: removed 'api/' since global prefix adds it
+@Controller('v1/national-id')
 export class NationalIdController {
   constructor(private readonly nationalIdService: NationalIdService) {}
 
@@ -103,6 +105,50 @@ export class NationalIdController {
       data: application,
       message: 'Application verified by Village Head',
     };
+  }
+
+  // ✅ Verification endpoint with surname query parameter
+  @Get('verify/:nationalIdNumber')
+  @UseGuards(ApiKeyGuard)
+  async verifyNationalId(
+    @Param('nationalIdNumber') nationalIdNumber: string,
+    @Query('surname') surname: string,
+  ) {
+    if (!surname) {
+      throw new BadRequestException('Surname query parameter is required');
+    }
+    
+    const result = await this.nationalIdService.verifyNationalId(nationalIdNumber, surname);
+    
+    return {
+      verified: result.verified,
+      isValid: result.isValid,
+      message: result.message,
+      data: result.data
+    };
+  }
+
+  // ✅ Bulk verification endpoint for external systems
+  @Post('verify/batch')
+  @UseGuards(ApiKeyGuard)
+  async verifyMultipleNationalIds(@Body() body: { nationalIdNumbers: string[] }) {
+    if (!body.nationalIdNumbers || !Array.isArray(body.nationalIdNumbers)) {
+      throw new BadRequestException('nationalIdNumbers array is required');
+    }
+    
+    const results = await Promise.all(
+      body.nationalIdNumbers.map(async (id) => {
+        const result = await this.nationalIdService.findByNationalIdNumber(id);
+        return {
+          nationalIdNumber: id,
+          verified: !!result,
+          isValid: result?.isValid || false,
+          fullName: result ? `${result.firstName} ${result.surname}` : null,
+        };
+      })
+    );
+    
+    return { results, total: results.length };
   }
 
   @Get('reports/download')

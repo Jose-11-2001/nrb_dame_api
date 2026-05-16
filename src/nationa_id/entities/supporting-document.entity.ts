@@ -1,5 +1,5 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
-import { NationalIdApplication } from './national_id.entity';
+import { NationalIdApplication } from './nationalIdApplication.entity';
 
 @Entity('supporting_documents')
 export class SupportingDocument {

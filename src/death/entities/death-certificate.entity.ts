@@ -6,7 +6,7 @@ export class DeathCertificate {
   id: string;
 
   @Column({ unique: true })
-  registrationNumber: string;
+  certificateNumber: string;
 
   @CreateDateColumn()
   createdAt: Date;
@@ -24,8 +24,17 @@ export class DeathCertificate {
   @Column({ nullable: true })
   otherNames: string;
 
+  @Column()
+  deceasedFirstName: string;
+
+  @Column()
+  deceasedLastName: string;
+
   @Column({ nullable: true })
   idNumber: string;
+
+  @Column()
+  deceasedNationalId: string;
 
   @Column()
   nationality: string;
@@ -38,6 +47,9 @@ export class DeathCertificate {
 
   @Column({ type: 'date' })
   dateOfDeath: Date;
+
+  @Column()
+  causeOfDeath: string;
 
   @Column()
   placeOfDeath: string;
@@ -132,6 +144,12 @@ export class DeathCertificate {
   informantIdNo: string;
 
   @Column()
+  informantName: string;
+
+  @Column()
+  informantRelation: string;
+
+  @Column()
   informantRelationship: string;
 
   @Column({ type: 'text' })
@@ -164,6 +182,19 @@ export class DeathCertificate {
 
   @Column({ nullable: true, type: 'text' })
   villageHeadStamp: string;
+
+  // Certificate Details
+  @Column({ nullable: true })
+  certificatePdfUrl: string;
+
+  @Column({ default: true })
+  isValid: boolean;
+
+  @Column({ nullable: true, type: 'timestamp' })
+  issuedAt: Date;
+
+  @Column({ nullable: true })
+  issuedBy: string;
 
   // Status
   @Column({ default: 'PENDING' })

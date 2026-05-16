@@ -1,19 +1,27 @@
-// src/nationa_id/national_id.service.ts
+
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { NationalIdApplication } from './entities/national_id.entity';
+import { NationalIdApplication, ApplicationStatus } from './entities/nationalIdApplication.entity';
+import { NationalId } from './entities/national-id.entity';  // ✅ Simple National ID entity for issued IDs
 import { SupportingDocument } from './entities/supporting-document.entity';
 import { VerificationLog } from './entities/verification-log.entity';
-import { CreateNationalIdDto, ApplicationStatus } from './dto/create-national_id.dto';
+import { CreateNationalIdDto } from './dto/create-national_id.dto';
 
 @Injectable()
 export class NationalIdService {
   constructor(
+    // Repository for applications (full details, documents, verification)
     @InjectRepository(NationalIdApplication)
-    private nationalIdRepo: Repository<NationalIdApplication>,
+    private nationalIdAppRepo: Repository<NationalIdApplication>,
+    
+    // ✅ Repository for issued IDs (only final, verified ID records)
+    @InjectRepository(NationalId)
+    private nationalIdRepo: Repository<NationalId>,
+    
     @InjectRepository(SupportingDocument)
     private documentRepo: Repository<SupportingDocument>,
+    
     @InjectRepository(VerificationLog)
     private logRepo: Repository<VerificationLog>,
   ) {}
@@ -33,7 +41,44 @@ export class NationalIdService {
 
     return score;
   }
-
+// Add this method to your NationalIdService
+async verifyNationalId(nationalIdNumber: string, surname: string): Promise<{
+  verified: boolean;
+  isValid: boolean;
+  message: string;
+  data?: any;
+}> {
+  const result = await this.findByNationalIdNumber(nationalIdNumber);
+  
+  if (!result) {
+    return {
+      verified: false,
+      isValid: false,
+      message: 'National ID not found'
+    };
+  }
+  
+  // Verify surname matches
+  if (result.surname.toLowerCase() !== surname.toLowerCase()) {
+    return {
+      verified: false,
+      isValid: false,
+      message: 'Surname does not match the national ID record'
+    };
+  }
+  
+  return {
+    verified: true,
+    isValid: result.isValid,
+    message: result.isValid ? 'National ID is valid' : 'National ID is invalid or expired',
+    data: {
+      fullName: `${result.firstName} ${result.surname}`,
+      dateOfBirth: result.dateOfBirth,
+      gender: result.gender,
+      nationalIdNumber: result.nationalIdNumber,
+    }
+  };
+}
   async create(createDto: CreateNationalIdDto) {
     // Generate application number
     const applicationNumber = `NR1/${new Date().getFullYear()}/${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
@@ -42,16 +87,16 @@ export class NationalIdService {
     const citizenshipScore = this.calculateCitizenshipScore(createDto);
     const isEligible = citizenshipScore >= 100;
 
-    const application = this.nationalIdRepo.create({
+    const application = this.nationalIdAppRepo.create({
       applicationNumber,
       ...createDto,
       citizenshipScore,
       isEligible,
       status: isEligible ? ApplicationStatus.VERIFIED : ApplicationStatus.PENDING,
-      applicationDate: new Date(), // Auto-set current date
+      applicationDate: new Date(),
     });
 
-    const savedApplication = await this.nationalIdRepo.save(application);
+    const savedApplication = await this.nationalIdAppRepo.save(application);
 
     // Create verification logs
     if (!isEligible) {
@@ -67,7 +112,7 @@ export class NationalIdService {
 
   async uploadDocument(applicationId: string, file: Express.Multer.File, documentType: string) {
     // Check if application exists
-    const application = await this.nationalIdRepo.findOne({ where: { id: applicationId } });
+    const application = await this.nationalIdAppRepo.findOne({ where: { id: applicationId } });
     if (!application) {
       throw new NotFoundException('Application not found');
     }
@@ -107,7 +152,7 @@ export class NationalIdService {
   }
 
   async findAll(filters: any) {
-    const queryBuilder = this.nationalIdRepo.createQueryBuilder('app')
+    const queryBuilder = this.nationalIdAppRepo.createQueryBuilder('app')
       .leftJoinAndSelect('app.supportingDocuments', 'docs')
       .leftJoinAndSelect('app.verificationLogs', 'logs')
       .orderBy('app.createdAt', 'DESC');
@@ -129,7 +174,7 @@ export class NationalIdService {
   }
 
   async findOne(id: string) {
-    const application = await this.nationalIdRepo.findOne({
+    const application = await this.nationalIdAppRepo.findOne({
       where: { id },
       relations: ['supportingDocuments', 'verificationLogs'],
     });
@@ -141,6 +186,25 @@ export class NationalIdService {
     return application;
   }
 
+  // ✅ FIXED: Query the NationalId repository (for issued IDs)
+  async findByNationalIdNumber(nationalIdNumber: string): Promise<NationalId | null> {
+    return this.nationalIdRepo.findOne({ 
+      where: { nationalIdNumber: nationalIdNumber }
+    });
+  }
+
+  // ✅ New: Get all issued National IDs
+  async findAllIssuedIds(): Promise<NationalId[]> {
+    return this.nationalIdRepo.find({
+      order: { issuedAt: 'DESC' },
+    });
+  }
+
+  // ✅ New: Get a single issued National ID
+  async findIssuedIdById(id: string): Promise<NationalId | null> {
+    return this.nationalIdRepo.findOne({ where: { id } });
+  }
+
   async verifyByVillageHead(applicationId: string, villageHeadIdNo: string, signature: string) {
     const application = await this.findOne(applicationId);
     
@@ -148,18 +212,61 @@ export class NationalIdService {
     application.villageHeadSignature = signature;
     application.status = ApplicationStatus.VERIFIED;
     
-    const updated = await this.nationalIdRepo.save(application);
+    const updated = await this.nationalIdAppRepo.save(application);
     
     await this.createVerificationLog(applicationId, 'Village Head Verification', `Verified by ID: ${villageHeadIdNo}`);
 
     return updated;
   }
 
+  // ✅ This method creates a final issued ID after approval
+  async issueNationalId(applicationId: string): Promise<NationalId> {
+    const application = await this.findOne(applicationId);
+    
+    if (application.status !== ApplicationStatus.APPROVED && application.status !== ApplicationStatus.VERIFIED) {
+      throw new BadRequestException('Application must be approved first');
+    }
+    
+    // Generate unique national ID number
+    const nationalIdNumber = this.generateNationalIdNumber();
+    
+    const newNationalId = this.nationalIdRepo.create({
+      nationalIdNumber,
+      firstName: application.firstName,
+      surname: application.surname,
+      dateOfBirth: application.dateOfBirth,
+      gender: application.gender,
+      placeOfBirth: application.districtOfBirth,
+      fatherName: application.fatherFullName,
+      motherName: application.motherFullName,
+      address: application.residentialVillage,
+      isValid: true,
+      issuedAt: new Date(),
+    });
+    
+    // Update application status
+    application.status = ApplicationStatus.COMPLETED;
+    await this.nationalIdAppRepo.save(application);
+    
+    return this.nationalIdRepo.save(newNationalId);
+  }
+
+  private generateNationalIdNumber(): string {
+    // Generate a unique national ID number
+    // Format: YYMMDD + random 6 digits
+    const date = new Date();
+    const yy = date.getFullYear().toString().slice(-2);
+    const mm = (date.getMonth() + 1).toString().padStart(2, '0');
+    const dd = date.getDate().toString().padStart(2, '0');
+    const random = Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
+    return `${yy}${mm}${dd}${random}`;
+  }
+
   async generateReport(startDate: Date, endDate: Date) {
-    const applications = await this.nationalIdRepo.find({
+    const applications = await this.nationalIdAppRepo.find({
       where: {
         createdAt: {
-          // Using Between operator
+          // Using Between operator - handled by filter below
         } as any,
       },
       order: { createdAt: 'ASC' },
@@ -194,7 +301,7 @@ export class NationalIdService {
     const totalScore = documents.reduce((sum, doc) => sum + (doc.score || 0), 0);
     const isEligible = totalScore >= 100;
 
-    await this.nationalIdRepo.update(applicationId, {
+    await this.nationalIdAppRepo.update(applicationId, {
       citizenshipScore: totalScore,
       isEligible,
       status: isEligible ? ApplicationStatus.VERIFIED : ApplicationStatus.PENDING,
