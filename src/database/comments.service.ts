@@ -1,19 +1,37 @@
-import { Injectable } from '@nestjs/common';
-import { NeonService } from './neon.service';
+import { Injectable, OnModuleInit } from '@nestjs/common';
+import { neon } from '@neondatabase/serverless';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
-export class CommentsService {
-  constructor(private neonService: NeonService) {}
+export class DatabaseService implements OnModuleInit {
+  private sql: any;
 
-  async createComment(comment: string) {
-    const result = await this.neonService.query(
-      'INSERT INTO comments (comment) VALUES ($1) RETURNING *',
-      [comment]
-    );
-    return result[0];
+  constructor(private configService: ConfigService) {}
+
+  async onModuleInit() {
+    const databaseUrl = this.configService.get<string>('POSTGRES_URL');
+    if (!databaseUrl) {
+      console.error('POSTGRES_URL environment variable is not set');
+      return;
+    }
+    this.sql = neon(databaseUrl);
+    
+    try {
+      const result = await this.sql`SELECT NOW()`;
+      console.log('✅ Database connected successfully:', result[0]);
+    } catch (error) {
+      console.error('❌ Database connection failed:', error);
+    }
   }
 
-  async getAllComments() {
-    return await this.neonService.query('SELECT * FROM comments ORDER BY created_at DESC');
+  get client() {
+    if (!this.sql) {
+      throw new Error('Database not initialized. Check POSTGRES_URL environment variable.');
+    }
+    return this.sql;
+  }
+
+  async query(text: string, params?: any[]) {
+    return this.sql(text, params);
   }
 }
