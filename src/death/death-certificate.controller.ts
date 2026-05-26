@@ -1,10 +1,9 @@
-
-import { Controller, Post, Get, Put, Body, Param, Query, UseGuards } from '@nestjs/common';
-import { DeathCertificateService } from '../death/death-certificate.service';
-import { CreateDeathCertificateDto } from '../death/dto/create-death.dto';
+import { Controller, Post, Get, Put, Body, Param, Query, UseGuards, BadRequestException } from '@nestjs/common';
+import { DeathCertificateService } from './death-certificate.service';
+import { CreateDeathCertificateDto } from './dto/create-death.dto';
 import { ApiKeyGuard } from '../auth/api-key.guard';
 
-@Controller('v1/death-certificate')
+@Controller('v1/death-certificate') // Keep your existing route
 export class DeathCertificateController {
   constructor(private readonly deathService: DeathCertificateService) {}
 
@@ -52,8 +51,8 @@ export class DeathCertificateController {
   }
 
   @Get('search/registration/:deathCertificateNumber')
-  async searchByRegistration(@Param('deathCertificateNumber') DeathCertificateNumber: string) {
-    const certificate = await this.deathService.searchByCertificateNumber(DeathCertificateNumber);
+  async searchByRegistration(@Param('deathCertificateNumber') deathCertificateNumber: string) {
+    const certificate = await this.deathService.searchByCertificateNumber(deathCertificateNumber);
     return {
       success: true,
       data: certificate,
@@ -69,16 +68,38 @@ export class DeathCertificateController {
     };
   }
 
+  // ✅ UPDATED: Register death certificate with National ID update
   @Put(':id/register')
   async registerDeath(
     @Param('id') id: string,
     @Body('districtRegistrarSignature') signature: string,
   ) {
+    if (!signature) {
+      throw new BadRequestException('District Registrar Signature is required');
+    }
+    
     const certificate = await this.deathService.register(id, signature);
     return {
       success: true,
       data: certificate,
-      message: 'Death certificate registered successfully',
+      message: 'Death certificate registered successfully and National ID has been marked as deceased',
+    };
+  }
+
+  // ✅ NEW: Direct death registration endpoint (creates and registers in one call)
+  @Post('register')
+  async createAndRegister(@Body() body: { 
+    certificateData: CreateDeathCertificateDto, 
+    signature: string 
+  }) {
+    const certificate = await this.deathService.registerDeath(
+      body.certificateData, 
+      body.signature
+    );
+    return {
+      success: true,
+      data: certificate,
+      message: 'Death certificate registered and National ID updated successfully',
     };
   }
 
@@ -95,12 +116,14 @@ export class DeathCertificateController {
       data: result ? {
         deceasedName: `${result.firstName} ${result.surname}`,
         dateOfDeath: result.dateOfDeath,
-        causeOfDeath: result.causeOfDeath
+        causeOfDeath: result.causeOfDeath,
+        certificateNumber: result.certificateNumber,
+        dateOfIssue: result.issuedAt
       } : null
     };
   }
 
-  // ✅ NEW: Verify by deceased national ID
+  // ✅ NEW: Verify by deceased national ID (checks if person is deceased)
   @Get('verify/by-national-id/:nationalId')
   @UseGuards(ApiKeyGuard)
   async verifyByDeceasedNationalId(@Param('nationalId') nationalId: string) {
@@ -109,6 +132,7 @@ export class DeathCertificateController {
     return {
       verified: results.length > 0,
       hasDeathCertificate: results.length > 0,
+      isDeceased: results.length > 0,
       count: results.length,
       certificates: results.map(cert => ({
         certificateNumber: cert.certificateNumber,

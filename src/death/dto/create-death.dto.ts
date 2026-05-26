@@ -5,7 +5,8 @@ import {
   IsOptional, 
   IsBoolean,
   Length,
-  IsPhoneNumber
+  IsPhoneNumber,
+  IsNotEmpty
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -61,7 +62,9 @@ export class CreateDeathCertificateDto {
   @IsString()
   @IsOptional()
   idNumber?: string;
-
+@IsString()
+  @IsNotEmpty()
+  deceasedNationalId: string; 
   @IsString()
   nationality: string;
 

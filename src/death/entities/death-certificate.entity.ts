@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn } from 'typeorm';
 
 @Entity('death_certificates')
 export class DeathCertificate {
@@ -8,208 +8,51 @@ export class DeathCertificate {
   @Column({ unique: true })
   certificateNumber: string;
 
+  @Column()
+  deceasedNationalId: string;
+
+  @Column()
+  firstName: string;
+
+  @Column()
+  surname: string;
+
+  @Column({ type: 'date' })
+  dateOfDeath: Date;
+
+  @Column({ type: 'text' })
+  causeOfDeath: string;
+
+  @Column({ nullable: true })
+  placeOfDeath: string;
+
+  @Column({ nullable: true })
+  district: string;
+
+  @Column({ nullable: true })
+  village: string;
+
+  @Column({ nullable: true })
+  ta: string;
+
+  @Column({ nullable: true, type: 'text' })
+  districtRegistrarSignature: string;
+
+  @Column({ type: 'timestamp', nullable: true })
+  dateOfRegistration: Date;
+
+  @Column({ default: 'PENDING' })
+  status: string;
+
+  @Column({ default: false })
+  isValid: boolean;
+
+  @Column({ type: 'timestamp', nullable: true })
+  issuedAt: Date;
+
   @CreateDateColumn()
   createdAt: Date;
 
   @UpdateDateColumn()
   updatedAt: Date;
-
-  // Deceased Details
-  @Column()
-  surname: string;
-
-  @Column()
-  firstName: string;
-
-  @Column({ nullable: true })
-  otherNames: string;
-
-  @Column()
-  deceasedFirstName: string;
-
-  @Column()
-  deceasedLastName: string;
-
-  @Column({ nullable: true })
-  idNumber: string;
-
-  @Column()
-  deceasedNationalId: string;
-
-  @Column()
-  nationality: string;
-
-  @Column()
-  gender: string;
-
-  @Column({ type: 'date' })
-  dateOfBirth: Date;
-
-  @Column({ type: 'date' })
-  dateOfDeath: Date;
-
-  @Column()
-  causeOfDeath: string;
-
-  @Column()
-  placeOfDeath: string;
-
-  @Column({ nullable: true })
-  healthFacilityName: string;
-
-  @Column({ nullable: true, type: 'text' })
-  healthFacilityAddress: string;
-
-  @Column({ nullable: true })
-  homeDistrict: string;
-
-  @Column({ nullable: true })
-  homeTA: string;
-
-  @Column({ nullable: true })
-  homeVillage: string;
-
-  @Column({ nullable: true, type: 'text' })
-  otherPlaceDetails: string;
-
-  @Column()
-  mannerOfDeath: string;
-
-  @Column({ nullable: true })
-  accidentType: string;
-
-  @Column({ nullable: true, type: 'text' })
-  accidentDetails: string;
-
-  // Residential Address
-  @Column()
-  residentialDistrict: string;
-
-  @Column()
-  residentialTA: string;
-
-  @Column()
-  residentialVillage: string;
-
-  // Pregnancy
-  @Column({ nullable: true })
-  wasPregnant: string;
-
-  @Column({ nullable: true, type: 'boolean' })
-  pregnantAtDeath: boolean;
-
-  // Mother Details
-  @Column()
-  motherSurname: string;
-
-  @Column()
-  motherFirstName: string;
-
-  @Column({ nullable: true })
-  motherOtherNames: string;
-
-  @Column({ nullable: true })
-  motherIdNo: string;
-
-  @Column()
-  motherNationality: string;
-
-  // Father Details
-  @Column()
-  fatherSurname: string;
-
-  @Column()
-  fatherFirstName: string;
-
-  @Column({ nullable: true })
-  fatherOtherNames: string;
-
-  @Column({ nullable: true })
-  fatherIdNo: string;
-
-  @Column()
-  fatherNationality: string;
-
-  // Informant Details
-  @Column()
-  informantSurname: string;
-
-  @Column()
-  informantFirstName: string;
-
-  @Column({ nullable: true })
-  informantOtherNames: string;
-
-  @Column()
-  informantIdNo: string;
-
-  @Column()
-  informantName: string;
-
-  @Column()
-  informantRelation: string;
-
-  @Column()
-  informantRelationship: string;
-
-  @Column({ type: 'text' })
-  informantAddress: string;
-
-  @Column({ nullable: true, type: 'text' })
-  informantPostalAddress: string;
-
-  @Column({ nullable: true })
-  informantPhone: string;
-
-  @Column({ nullable: true, type: 'text' })
-  informantSignature: string;
-
-  @Column({ nullable: true, type: 'timestamp' })
-  informantDate: Date;
-
-  // Village Head Verification
-  @Column({ nullable: true })
-  villageHeadName: string;
-
-  @Column({ nullable: true })
-  villageHeadIdNo: string;
-
-  @Column({ nullable: true, type: 'text' })
-  villageHeadSignature: string;
-
-  @Column({ nullable: true, type: 'timestamp' })
-  villageHeadDate: Date;
-
-  @Column({ nullable: true, type: 'text' })
-  villageHeadStamp: string;
-
-  // Certificate Details
-  @Column({ nullable: true })
-  certificatePdfUrl: string;
-
-  @Column({ default: true })
-  isValid: boolean;
-
-  @Column({ nullable: true, type: 'timestamp' })
-  issuedAt: Date;
-
-  @Column({ nullable: true })
-  issuedBy: string;
-
-  // Status
-  @Column({ default: 'PENDING' })
-  status: string;
-
-  // Official Use
-  @Column({ nullable: true, type: 'text' })
-  districtRegistrarSignature: string;
-
-  @Column({ nullable: true, type: 'timestamp' })
-  dateOfRegistration: Date;
-
-  @Column({ nullable: true })
-  deathEntryNumber: string;
-
-  @Column({ nullable: true, type: 'text' })
-  officialStamp: string;
 }

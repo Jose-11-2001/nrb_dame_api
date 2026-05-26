@@ -1,4 +1,3 @@
-// src/nationa_id/entities/national-id.entity.ts
 import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn } from 'typeorm';
 
 @Entity('national_ids')
@@ -22,6 +21,9 @@ export class NationalId {
   gender: string;
 
   @Column()
+  nationality: string;
+
+  @Column()
   placeOfBirth: string;
 
   @Column()
@@ -38,6 +40,15 @@ export class NationalId {
 
   @Column({ default: true })
   isValid: boolean;
+
+  @Column({ default: false })
+  isDeceased: boolean;
+
+  @Column({ nullable: true, type: 'timestamp' })
+  dateOfDeath: Date;
+
+  @Column({ nullable: true })
+  deathCertificateNumber: string;
 
   @Column({ nullable: true, type: 'timestamp' })
   issuedAt: Date;
