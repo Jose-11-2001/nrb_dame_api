@@ -17,14 +17,18 @@ import { DeathCertificate } from './death/entities/death-certificate.entity';
     ConfigModule.forRoot({
       isGlobal: true,
     }),
-    // ✅ Add TypeORM configuration
-    TypeOrmModule.forRoot({
+   
+   TypeOrmModule.forRoot({
       type: 'postgres',
-      url: process.env.DATABASE_URL, // Vercel Postgres URL
+      url: process.env.DATABASE_URL || process.env.POSTGRES_URL,
       autoLoadEntities: true,
-      synchronize: true, // Set to false in production
+      synchronize: true, 
       ssl: {
-        rejectUnauthorized: false, // Required for Vercel Postgres
+        rejectUnauthorized: false, 
+      },
+      extra: {
+        max: 10,
+        idleTimeoutMillis: 30000,
       },
     }),
     TypeOrmModule.forFeature([
