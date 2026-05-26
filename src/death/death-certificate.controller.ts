@@ -3,7 +3,7 @@ import { DeathCertificateService } from './death-certificate.service';
 import { CreateDeathCertificateDto } from './dto/create-death.dto';
 import { ApiKeyGuard } from '../auth/api-key.guard';
 
-@Controller('v1/death-certificate') // Keep your existing route
+@Controller('v1/death-certificate')
 export class DeathCertificateController {
   constructor(private readonly deathService: DeathCertificateService) {}
 
@@ -68,7 +68,6 @@ export class DeathCertificateController {
     };
   }
 
-  // ✅ UPDATED: Register death certificate with National ID update
   @Put(':id/register')
   async registerDeath(
     @Param('id') id: string,
@@ -86,7 +85,43 @@ export class DeathCertificateController {
     };
   }
 
-  // ✅ NEW: Direct death registration endpoint (creates and registers in one call)
+  @Post(':id/approve')
+  async approveCertificate(
+    @Param('id') id: string,
+    @Body('approvedBy') approvedBy: string,
+  ) {
+    if (!approvedBy) {
+      throw new BadRequestException('Approved by is required');
+    }
+    
+    const certificate = await this.deathService.approveCertificate(id, approvedBy);
+    
+    return {
+      success: true,
+      data: certificate,
+      message: 'Death certificate approved successfully',
+    };
+  }
+
+  @Post(':id/reject')
+  async rejectCertificate(
+    @Param('id') id: string,
+    @Body('reason') reason: string,
+    @Body('rejectedBy') rejectedBy: string,
+  ) {
+    if (!reason || !rejectedBy) {
+      throw new BadRequestException('Reason and rejected by are required');
+    }
+    
+    const certificate = await this.deathService.rejectCertificate(id, reason, rejectedBy);
+    
+    return {
+      success: true,
+      data: certificate,
+      message: 'Death certificate rejected successfully',
+    };
+  }
+
   @Post('register')
   async createAndRegister(@Body() body: { 
     certificateData: CreateDeathCertificateDto, 
@@ -103,7 +138,28 @@ export class DeathCertificateController {
     };
   }
 
-  // ✅ NEW: Verify death certificate by number
+  @Post(':id/issue')
+  async issueDeathCertificate(@Param('id') id: string) {
+    const certificate = await this.deathService.issueCertificate(id);
+    return {
+      success: true,
+      certificateNumber: certificate.certificateNumber,
+      data: certificate,
+      message: 'Death certificate issued successfully',
+    };
+  }
+
+  @Get('debug/all')
+  async debugAll() {
+    const all = await this.deathService.findAll({});
+    return {
+      count: all.length,
+      data: all,
+      message: 'Debug: All death certificates retrieved',
+    };
+  }
+
+  // ✅ FIXED: Verify death certificate by number with fallback for issuedAt
   @Get('verify/:certificateNumber')
   @UseGuards(ApiKeyGuard)
   async verifyDeathCertificate(@Param('certificateNumber') certificateNumber: string) {
@@ -118,12 +174,11 @@ export class DeathCertificateController {
         dateOfDeath: result.dateOfDeath,
         causeOfDeath: result.causeOfDeath,
         certificateNumber: result.certificateNumber,
-        dateOfIssue: result.issuedAt
+        dateOfIssue: result.issuedAt || result.createdAt
       } : null
     };
   }
 
-  // ✅ NEW: Verify by deceased national ID (checks if person is deceased)
   @Get('verify/by-national-id/:nationalId')
   @UseGuards(ApiKeyGuard)
   async verifyByDeceasedNationalId(@Param('nationalId') nationalId: string) {

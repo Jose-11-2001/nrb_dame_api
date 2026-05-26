@@ -20,6 +20,9 @@ export class NationalId {
   @Column()
   gender: string;
 
+  @Column({ default: 'MALAWIAN' })
+  nationality: string;
+
   @Column()
   placeOfBirth: string;
 
@@ -31,6 +34,9 @@ export class NationalId {
 
   @Column({ nullable: true })
   address: string;
+
+  @Column({ nullable: true })
+  photoUrl: string;
 
   @Column({ default: true })
   isValid: boolean;

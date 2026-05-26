@@ -72,7 +72,6 @@ export class NationalIdController {
       filters.endDate = new Date(endDate);
     }
     
-    // If no filters, return issued IDs for dashboard
     if (Object.keys(filters).length === 0 && !status && !district) {
       const issuedIds = await this.nationalIdService.findAllIssuedIds();
       return {
@@ -205,6 +204,60 @@ export class NationalIdController {
       success: true,
       data: application,
       message: 'Application verified by Village Head',
+    };
+  }
+
+  // ✅ APPROVE application (Admin)
+  @Post(':id/approve')
+  async approveApplication(
+    @Param('id') id: string,
+    @Body('approvedBy') approvedBy: string,
+  ) {
+    if (!approvedBy) {
+      throw new BadRequestException('Approved by is required');
+    }
+    
+    const application = await this.nationalIdService.approveApplication(id, approvedBy);
+    
+    // Get the issued ID number
+    const issuedId = await this.nationalIdService.findByApplicationId(id);
+    
+    return {
+      success: true,
+      data: application,
+      nationalIdNumber: issuedId?.nationalIdNumber,
+      message: 'Application approved successfully',
+    };
+  }
+
+  // ✅ REJECT application (Admin)
+  @Post(':id/reject')
+  async rejectApplication(
+    @Param('id') id: string,
+    @Body('reason') reason: string,
+    @Body('rejectedBy') rejectedBy: string,
+  ) {
+    if (!reason || !rejectedBy) {
+      throw new BadRequestException('Reason and rejected by are required');
+    }
+    
+    const application = await this.nationalIdService.rejectApplication(id, reason, rejectedBy);
+    
+    return {
+      success: true,
+      data: application,
+      message: 'Application rejected successfully',
+    };
+  }
+
+  // ✅ GET all applications for admin
+  @Get('admin/all')
+  async getAllForAdmin() {
+    const applications = await this.nationalIdService.getAllApplicationsForAdmin();
+    return {
+      success: true,
+      data: applications,
+      count: applications.length,
     };
   }
 

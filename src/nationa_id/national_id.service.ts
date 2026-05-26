@@ -387,7 +387,88 @@ async getPendingCount(): Promise<number> {
       });
     });
     
+    
     const buffer = await workbook.xlsx.writeBuffer();
     return buffer;
   }
+  // Add these methods to your NationalIdService
+
+// ✅ Approve application and generate ID number
+async approveApplication(id: string, approvedBy: string): Promise<NationalIdApplication> {
+  const application = await this.findOne(id);
+  
+  if (application.status !== 'VERIFIED') {
+    throw new BadRequestException('Application must be verified before approval');
+  }
+  
+  // Generate National ID number
+  const nationalIdNumber = this.generateNationalIdNumber();
+  
+  // Create issued National ID
+  const newNationalId = this.nationalIdRepo.create({
+    nationalIdNumber,
+    firstName: application.firstName,
+    surname: application.surname,
+    dateOfBirth: application.dateOfBirth,
+    gender: application.gender,
+    placeOfBirth: application.districtOfBirth,
+    fatherName: application.fatherFullName,
+    motherName: application.motherFullName,
+    address: application.residentialVillage,
+    isValid: true,
+    issuedAt: new Date(),
+  });
+  
+  await this.nationalIdRepo.save(newNationalId);
+  
+  // Update application status
+  application.status = 'APPROVED';
+  application.rejectionReason = null;
+  await this.nationalIdAppRepo.save(application);
+  
+  // Create verification log
+  await this.createVerificationLog(id, 'Application Approved', `Approved by: ${approvedBy}. ID Number: ${nationalIdNumber}`);
+  
+  return application;
+}
+
+// ✅ Reject application
+async rejectApplication(id: string, reason: string, rejectedBy: string): Promise<NationalIdApplication> {
+  const application = await this.findOne(id);
+  
+  if (application.status !== 'PENDING' && application.status !== 'VERIFIED') {
+    throw new BadRequestException('Only pending or verified applications can be rejected');
+  }
+  
+  application.status = 'REJECTED';
+  application.rejectionReason = reason;
+  await this.nationalIdAppRepo.save(application);
+  
+  // Create verification log
+  await this.createVerificationLog(id, 'Application Rejected', `Rejected by: ${rejectedBy}. Reason: ${reason}`);
+  
+  return application;
+}
+// Add this method to your NationalIdService class
+
+// ✅ Find issued National ID by application ID
+async findByApplicationId(applicationId: string): Promise<NationalId | null> {
+  // Since there's no direct relation, find by matching personal details
+  const application = await this.findOne(applicationId);
+  if (!application) return null;
+  
+  return this.nationalIdRepo.findOne({ 
+    where: {
+      firstName: application.firstName,
+      surname: application.surname,
+      dateOfBirth: application.dateOfBirth,
+    }
+  });
+}
+async getAllApplicationsForAdmin(): Promise<NationalIdApplication[]> {
+  return this.nationalIdAppRepo.find({
+    relations: ['supportingDocuments', 'verificationLogs'],
+    order: { createdAt: 'DESC' },
+  });
+}
 }

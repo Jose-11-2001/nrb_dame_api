@@ -16,7 +16,6 @@ export class DeathCertificateService {
   ) {}
 
   async create(createDto: CreateDeathCertificateDto) {
-    // Generate unique certificate number
     const certificateNumber = `DTH/${new Date().getFullYear()}/${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
     
     const certificate = this.deathCertRepo.create({
@@ -86,7 +85,6 @@ export class DeathCertificateService {
     });
   }
 
-  // Register death certificate AND update National ID
   async register(id: string, signature: string) {
     const certificate = await this.findOne(id);
     
@@ -94,7 +92,6 @@ export class DeathCertificateService {
       throw new BadRequestException('Death certificate is already registered');
     }
     
-    // Check if deceased person exists in National ID registry
     const nationalIdRecord = await this.nationalIdRepo.findOne({
       where: { nationalIdNumber: certificate.deceasedNationalId }
     });
@@ -103,11 +100,6 @@ export class DeathCertificateService {
       throw new NotFoundException(`National ID ${certificate.deceasedNationalId} not found in registry`);
     }
     
-    if (nationalIdRecord.isDeceased) {
-      throw new BadRequestException('This person is already registered as deceased');
-    }
-    
-    // Update death certificate
     certificate.districtRegistrarSignature = signature;
     certificate.dateOfRegistration = new Date();
     certificate.status = 'REGISTERED';
@@ -116,7 +108,6 @@ export class DeathCertificateService {
     
     await this.deathCertRepo.save(certificate);
     
-    // Update National ID as deceased
     await this.nationalIdRepo.update(
       { nationalIdNumber: certificate.deceasedNationalId },
       {
@@ -130,9 +121,52 @@ export class DeathCertificateService {
     return certificate;
   }
 
-  // Direct death registration (creates and registers in one step)
+  async approveCertificate(id: string, approvedBy: string): Promise<DeathCertificate> {
+    const certificate = await this.findOne(id);
+    
+    if (certificate.status !== 'REGISTERED') {
+      throw new BadRequestException('Certificate must be registered before approval');
+    }
+    
+    certificate.status = 'APPROVED';
+    certificate.isValid = true;
+    certificate.issuedAt = new Date();
+    await this.deathCertRepo.save(certificate);
+    
+    return certificate;
+  }
+
+  async rejectCertificate(id: string, reason: string, rejectedBy: string): Promise<DeathCertificate> {
+    const certificate = await this.findOne(id);
+    
+    certificate.status = 'REJECTED';
+    certificate.rejectionReason = reason;
+    await this.deathCertRepo.save(certificate);
+    
+    return certificate;
+  }
+
+  async issueCertificate(id: string): Promise<DeathCertificate> {
+    const certificate = await this.findOne(id);
+    
+    if (certificate.status !== 'REGISTERED' && certificate.status !== 'APPROVED') {
+      throw new BadRequestException('Certificate must be registered/approved before issuance');
+    }
+    
+    if (certificate.isValid) {
+      throw new BadRequestException('Certificate is already issued');
+    }
+    
+    certificate.isValid = true;
+    certificate.issuedAt = new Date();
+    certificate.status = 'ISSUED';
+    
+    await this.deathCertRepo.save(certificate);
+    
+    return certificate;
+  }
+
   async registerDeath(createDto: CreateDeathCertificateDto, registrarSignature: string) {
-    // Verify National ID exists
     const nationalIdRecord = await this.nationalIdRepo.findOne({
       where: { nationalIdNumber: createDto.deceasedNationalId }
     });
@@ -141,11 +175,6 @@ export class DeathCertificateService {
       throw new NotFoundException(`National ID ${createDto.deceasedNationalId} not found in registry`);
     }
     
-    if (nationalIdRecord.isDeceased) {
-      throw new BadRequestException('This person is already registered as deceased');
-    }
-    
-    // Create and register death certificate
     const certificateNumber = `DTH/${new Date().getFullYear()}/${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
     
     const certificate = this.deathCertRepo.create({
@@ -160,7 +189,6 @@ export class DeathCertificateService {
     
     const savedCertificate = await this.deathCertRepo.save(certificate);
     
-    // Update National ID as deceased
     await this.nationalIdRepo.update(
       { nationalIdNumber: createDto.deceasedNationalId },
       {
@@ -174,7 +202,6 @@ export class DeathCertificateService {
     return savedCertificate;
   }
 
-  // Verify death certificate for external API
   async verifyDeathCertificate(certificateNumber: string, deceasedNationalId: string) {
     const certificate = await this.deathCertRepo.findOne({
       where: { 
@@ -199,7 +226,7 @@ export class DeathCertificateService {
         dateOfDeath: certificate.dateOfDeath,
         causeOfDeath: certificate.causeOfDeath,
         certificateNumber: certificate.certificateNumber,
-        dateOfIssue: certificate.issuedAt,
+        dateOfIssue: certificate.issuedAt || certificate.createdAt,
       }
     };
   }
