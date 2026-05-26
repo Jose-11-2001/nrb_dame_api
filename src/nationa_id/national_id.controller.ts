@@ -208,6 +208,29 @@ export class NationalIdController {
     };
   }
 
+  // ✅ ISSUE National ID (for admin)
+  @Post(':id/issue')
+  async issueNationalId(@Param('id') id: string) {
+    const nationalId = await this.nationalIdService.issueNationalId(id);
+    return {
+      success: true,
+      nationalIdNumber: nationalId.nationalIdNumber,
+      data: nationalId,
+      message: 'National ID issued successfully',
+    };
+  }
+
+  // ✅ DEBUG: Get all applications (for testing)
+  @Get('debug/all')
+  async debugAll() {
+    const all = await this.nationalIdService.findAll({});
+    return {
+      count: all.length,
+      data: all,
+      message: 'Debug: All applications retrieved',
+    };
+  }
+
   // ✅ DOWNLOAD report
   @Get('reports/download')
   async downloadReport(
