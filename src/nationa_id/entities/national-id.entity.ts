@@ -21,9 +21,6 @@ export class NationalId {
   gender: string;
 
   @Column()
-  nationality: string;
-
-  @Column()
   placeOfBirth: string;
 
   @Column()
@@ -35,20 +32,20 @@ export class NationalId {
   @Column({ nullable: true })
   address: string;
 
-  @Column({ nullable: true })
-  photoUrl: string;
-
   @Column({ default: true })
   isValid: boolean;
 
   @Column({ default: false })
   isDeceased: boolean;
 
-  @Column({ nullable: true, type: 'timestamp' })
+  @Column({ nullable: true, type: 'date' })
   dateOfDeath: Date;
 
   @Column({ nullable: true })
   deathCertificateNumber: string;
+
+  @Column({ nullable: true })
+  photoUrl: string;
 
   @Column({ nullable: true, type: 'timestamp' })
   issuedAt: Date;

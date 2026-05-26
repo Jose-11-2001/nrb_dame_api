@@ -1,5 +1,3 @@
-
-
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { NationalIdController } from './national_id.controller';
