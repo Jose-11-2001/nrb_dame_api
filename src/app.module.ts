@@ -12,16 +12,17 @@ import { VerificationModule } from './verification/verification.module';
     ConfigModule.forRoot({
       isGlobal: true,
     }),
-    // ✅ This MUST be here before your feature modules
+    // ✅ Database configuration
     TypeOrmModule.forRoot({
       type: 'postgres',
       url: process.env.DATABASE_URL || process.env.POSTGRES_URL,
       autoLoadEntities: true,
-      synchronize: true, // Creates tables automatically
+      synchronize: true,
       ssl: {
         rejectUnauthorized: false,
       },
     }),
+    // ✅ Your feature modules
     NationalIdModule,
     DeathModule,
     VerificationModule,

@@ -20,35 +20,14 @@ export class DeathCertificate {
   @Column({ type: 'date' })
   dateOfDeath: Date;
 
-  @Column({ type: 'text' })
+  @Column('text')
   causeOfDeath: string;
 
   @Column({ nullable: true })
   placeOfDeath: string;
 
-  @Column({ nullable: true })
-  district: string;
-
-  @Column({ nullable: true })
-  village: string;
-
-  @Column({ nullable: true })
-  ta: string;
-
-  @Column({ nullable: true, type: 'text' })
-  districtRegistrarSignature: string;
-
-  @Column({ type: 'timestamp', nullable: true })
-  dateOfRegistration: Date;
-
-  @Column({ default: 'PENDING' })
-  status: string;
-
   @Column({ default: false })
   isValid: boolean;
-
-  @Column({ type: 'timestamp', nullable: true })
-  issuedAt: Date;
 
   @CreateDateColumn()
   createdAt: Date;

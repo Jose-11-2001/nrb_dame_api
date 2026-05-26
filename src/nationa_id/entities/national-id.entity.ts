@@ -44,9 +44,6 @@ export class NationalId {
   @Column({ nullable: true })
   deathCertificateNumber: string;
 
-  @Column({ nullable: true })
-  photoUrl: string;
-
   @Column({ nullable: true, type: 'timestamp' })
   issuedAt: Date;
 
