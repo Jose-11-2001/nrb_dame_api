@@ -1,7 +1,6 @@
-// src/nationa_id/national_id.module.ts
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { NationalIdController } from './national_id.controller';
+import { NationalIdController } from './national_id.controller'; 
 import { NationalIdService } from './national_id.service';
 import { NationalIdApplication } from './entities/nationalIdApplication.entity';
 import { SupportingDocument } from './entities/supporting-document.entity';
@@ -17,7 +16,7 @@ import { NationalId } from './entities/national-id.entity';
       NationalId,
     ]),
   ],
-  controllers: [NationalIdController],
+  controllers: [NationalIdController], 
   providers: [NationalIdService],
   exports: [NationalIdService],
 })

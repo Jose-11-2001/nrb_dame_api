@@ -218,6 +218,51 @@ async verifyNationalId(nationalIdNumber: string, surname: string): Promise<{
 
     return updated;
   }
+  // Add these methods to your NationalIdService class
+
+// Find by surname
+async findBySurname(surname: string): Promise<NationalId[]> {
+  return this.nationalIdRepo.find({
+    where: { 
+      surname: surname,
+      isValid: true 
+    },
+    order: { issuedAt: 'DESC' },
+  });
+}
+
+// Get statistics for dashboard
+async getStatistics() {
+  const total = await this.nationalIdRepo.count();
+  const valid = await this.nationalIdRepo.count({ where: { isValid: true } });
+  const deceased = await this.nationalIdRepo.count({ where: { isDeceased: true } });
+  const pending = await this.nationalIdAppRepo.count({ 
+    where: { status: ApplicationStatus.PENDING } 
+  });
+  
+  return {
+    total,
+    valid,
+    deceased,
+    active: total - deceased,
+    pendingApplications: pending,
+  };
+}
+
+// Get recent issued IDs
+async getRecentIssued(limit: number = 10): Promise<NationalId[]> {
+  return this.nationalIdRepo.find({
+    order: { issuedAt: 'DESC' },
+    take: limit,
+  });
+}
+
+// Get pending applications count
+async getPendingCount(): Promise<number> {
+  return this.nationalIdAppRepo.count({
+    where: { status: ApplicationStatus.PENDING }
+  });
+}
 
   // ✅ This method creates a final issued ID after approval
   async issueNationalId(applicationId: string): Promise<NationalId> {
