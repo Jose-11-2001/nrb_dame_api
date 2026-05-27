@@ -239,11 +239,7 @@ export class NationalIdService {
     });
   }
 
-  //id number izikhala number nd letters
-  private generateNationalIdNumber(): string {
-    return this.generateAlphanumeric(8);
-  }
-
+  // ✅ Generate alphanumeric string
   private generateAlphanumeric(length: number): string {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
     let result = '';
@@ -253,6 +249,41 @@ export class NationalIdService {
     return result;
   }
 
+  // ✅ Generate unique National ID number (checks for existence and deceased status)
+  private async generateUniqueNationalIdNumber(): Promise<string> {
+    let attempts = 0;
+    const maxAttempts = 10; // Prevent infinite loop
+    
+    while (attempts < maxAttempts) {
+      // Generate a random 8-character alphanumeric ID
+      const candidateId = this.generateAlphanumeric(8);
+      
+      // Check if this ID already exists in the database
+      const existingId = await this.nationalIdRepo.findOne({
+        where: { nationalIdNumber: candidateId }
+      });
+      
+      // If ID doesn't exist, it's available for use
+      if (!existingId) {
+        return candidateId;
+      }
+      
+      // ID exists, check if the person is deceased
+      if (existingId.isDeceased) {
+        // ID belongs to a deceased person - cannot reuse
+        console.log(`ID ${candidateId} belongs to deceased person, generating new one...`);
+        attempts++;
+        continue;
+      }
+      
+      // ID exists and person is alive - regenerate (shouldn't happen with random)
+      attempts++;
+    }
+    
+    // If we can't generate a unique ID after max attempts, throw error
+    throw new BadRequestException('Unable to generate unique National ID. Please try again.');
+  }
+
   async issueNationalId(applicationId: string): Promise<NationalId> {
     const application = await this.findOne(applicationId);
     
@@ -260,7 +291,8 @@ export class NationalIdService {
       throw new BadRequestException('Application must be approved first');
     }
     
-    const nationalIdNumber = this.generateNationalIdNumber();
+    // Generate unique National ID number with uniqueness check
+    const nationalIdNumber = await this.generateUniqueNationalIdNumber();
     
     const newNationalId = this.nationalIdRepo.create({
       nationalIdNumber,
@@ -366,7 +398,8 @@ export class NationalIdService {
       throw new BadRequestException('Application must be verified before approval');
     }
     
-    const nationalIdNumber = this.generateNationalIdNumber();
+    
+    const nationalIdNumber = await this.generateUniqueNationalIdNumber();
     
     const newNationalId = this.nationalIdRepo.create({
       nationalIdNumber,
