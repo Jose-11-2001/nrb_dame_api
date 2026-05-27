@@ -2,14 +2,11 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 
-// For local development
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   
-  // Enable CORS
   app.enableCors();
   
-  // Global validation pipe
   app.useGlobalPipes(new ValidationPipe({
     whitelist: true,
     transform: true,
@@ -22,7 +19,6 @@ async function bootstrap() {
   console.log(`📝 Environment: ${process.env.NODE_ENV || 'development'}`);
 }
 
-// For Vercel serverless deployment
 let cachedServer: any;
 
 export default async function handler(req: any, res: any) {

@@ -1,9 +1,8 @@
-
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { NationalIdApplication, ApplicationStatus } from './entities/nationalIdApplication.entity';
-import { NationalId } from './entities/national-id.entity';  // ✅ Simple National ID entity for issued IDs
+import { NationalId } from './entities/national-id.entity';
 import { SupportingDocument } from './entities/supporting-document.entity';
 import { VerificationLog } from './entities/verification-log.entity';
 import { CreateNationalIdDto } from './dto/create-national_id.dto';
@@ -11,11 +10,9 @@ import { CreateNationalIdDto } from './dto/create-national_id.dto';
 @Injectable()
 export class NationalIdService {
   constructor(
-    // Repository for applications (full details, documents, verification)
     @InjectRepository(NationalIdApplication)
     private nationalIdAppRepo: Repository<NationalIdApplication>,
     
-    // ✅ Repository for issued IDs (only final, verified ID records)
     @InjectRepository(NationalId)
     private nationalIdRepo: Repository<NationalId>,
     
@@ -28,62 +25,54 @@ export class NationalIdService {
 
   private calculateCitizenshipScore(dto: CreateNationalIdDto): number {
     let score = 0;
-
-    // Biological parent's National ID (100 points)
     if (dto.motherIdNo || dto.fatherIdNo) {
       score += 100;
     }
-
-    // Two community witnesses (100 points)
     if (dto.firstWitnessIdNo && dto.secondWitnessIdNo) {
       score += 100;
     }
-
     return score;
   }
-// Add this method to your NationalIdService
-async verifyNationalId(nationalIdNumber: string, surname: string): Promise<{
-  verified: boolean;
-  isValid: boolean;
-  message: string;
-  data?: any;
-}> {
-  const result = await this.findByNationalIdNumber(nationalIdNumber);
-  
-  if (!result) {
-    return {
-      verified: false,
-      isValid: false,
-      message: 'National ID not found'
-    };
-  }
-  
-  // Verify surname matches
-  if (result.surname.toLowerCase() !== surname.toLowerCase()) {
-    return {
-      verified: false,
-      isValid: false,
-      message: 'Surname does not match the national ID record'
-    };
-  }
-  
-  return {
-    verified: true,
-    isValid: result.isValid,
-    message: result.isValid ? 'National ID is valid' : 'National ID is invalid or expired',
-    data: {
-      fullName: `${result.firstName} ${result.surname}`,
-      dateOfBirth: result.dateOfBirth,
-      gender: result.gender,
-      nationalIdNumber: result.nationalIdNumber,
-    }
-  };
-}
-  async create(createDto: CreateNationalIdDto) {
-    // Generate application number
-    const applicationNumber = `NR1/${new Date().getFullYear()}/${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+
+  async verifyNationalId(nationalIdNumber: string, surname: string): Promise<{
+    verified: boolean;
+    isValid: boolean;
+    message: string;
+    data?: any;
+  }> {
+    const result = await this.findByNationalIdNumber(nationalIdNumber);
     
-    // Calculate citizenship score
+    if (!result) {
+      return {
+        verified: false,
+        isValid: false,
+        message: 'National ID not found'
+      };
+    }
+    
+    if (result.surname.toLowerCase() !== surname.toLowerCase()) {
+      return {
+        verified: false,
+        isValid: false,
+        message: 'Surname does not match the national ID record'
+      };
+    }
+    
+    return {
+      verified: true,
+      isValid: result.isValid,
+      message: result.isValid ? 'National ID is valid' : 'National ID is invalid or expired',
+      data: {
+        fullName: `${result.firstName} ${result.surname}`,
+        dateOfBirth: result.dateOfBirth,
+        gender: result.gender,
+        nationalIdNumber: result.nationalIdNumber,
+      }
+    };
+  }
+
+  async create(createDto: CreateNationalIdDto) {
+    const applicationNumber = `NR1/${new Date().getFullYear()}/${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
     const citizenshipScore = this.calculateCitizenshipScore(createDto);
     const isEligible = citizenshipScore >= 100;
 
@@ -98,7 +87,6 @@ async verifyNationalId(nationalIdNumber: string, surname: string): Promise<{
 
     const savedApplication = await this.nationalIdAppRepo.save(application);
 
-    // Create verification logs
     if (!isEligible) {
       await this.createVerificationLog(
         savedApplication.id,
@@ -111,13 +99,11 @@ async verifyNationalId(nationalIdNumber: string, surname: string): Promise<{
   }
 
   async uploadDocument(applicationId: string, file: Express.Multer.File, documentType: string) {
-    // Check if application exists
     const application = await this.nationalIdAppRepo.findOne({ where: { id: applicationId } });
     if (!application) {
       throw new NotFoundException('Application not found');
     }
     
-    // Upload to storage (implement based on your storage solution)
     const documentUrl = await this.uploadToStorage(file);
     
     const document = this.documentRepo.create({
@@ -129,8 +115,6 @@ async verifyNationalId(nationalIdNumber: string, surname: string): Promise<{
     });
 
     const savedDocument = await this.documentRepo.save(document);
-
-    // Recalculate score
     await this.recalculateScore(applicationId);
     
     return savedDocument;
@@ -186,21 +170,18 @@ async verifyNationalId(nationalIdNumber: string, surname: string): Promise<{
     return application;
   }
 
-  // ✅ FIXED: Query the NationalId repository (for issued IDs)
   async findByNationalIdNumber(nationalIdNumber: string): Promise<NationalId | null> {
     return this.nationalIdRepo.findOne({ 
       where: { nationalIdNumber: nationalIdNumber }
     });
   }
 
-  // ✅ New: Get all issued National IDs
   async findAllIssuedIds(): Promise<NationalId[]> {
     return this.nationalIdRepo.find({
       order: { issuedAt: 'DESC' },
     });
   }
 
-  // ✅ New: Get a single issued National ID
   async findIssuedIdById(id: string): Promise<NationalId | null> {
     return this.nationalIdRepo.findOne({ where: { id } });
   }
@@ -213,58 +194,65 @@ async verifyNationalId(nationalIdNumber: string, surname: string): Promise<{
     application.status = ApplicationStatus.VERIFIED;
     
     const updated = await this.nationalIdAppRepo.save(application);
-    
     await this.createVerificationLog(applicationId, 'Village Head Verification', `Verified by ID: ${villageHeadIdNo}`);
 
     return updated;
   }
-  // Add these methods to your NationalIdService class
 
-// Find by surname
-async findBySurname(surname: string): Promise<NationalId[]> {
-  return this.nationalIdRepo.find({
-    where: { 
-      surname: surname,
-      isValid: true 
-    },
-    order: { issuedAt: 'DESC' },
-  });
-}
+  async findBySurname(surname: string): Promise<NationalId[]> {
+    return this.nationalIdRepo.find({
+      where: { 
+        surname: surname,
+        isValid: true 
+      },
+      order: { issuedAt: 'DESC' },
+    });
+  }
 
-// Get statistics for dashboard
-async getStatistics() {
-  const total = await this.nationalIdRepo.count();
-  const valid = await this.nationalIdRepo.count({ where: { isValid: true } });
-  const deceased = await this.nationalIdRepo.count({ where: { isDeceased: true } });
-  const pending = await this.nationalIdAppRepo.count({ 
-    where: { status: ApplicationStatus.PENDING } 
-  });
-  
-  return {
-    total,
-    valid,
-    deceased,
-    active: total - deceased,
-    pendingApplications: pending,
-  };
-}
+  async getStatistics() {
+    const total = await this.nationalIdRepo.count();
+    const valid = await this.nationalIdRepo.count({ where: { isValid: true } });
+    const deceased = await this.nationalIdRepo.count({ where: { isDeceased: true } });
+    const pending = await this.nationalIdAppRepo.count({ 
+      where: { status: ApplicationStatus.PENDING } 
+    });
+    
+    return {
+      total,
+      valid,
+      deceased,
+      active: total - deceased,
+      pendingApplications: pending,
+    };
+  }
 
-// Get recent issued IDs
-async getRecentIssued(limit: number = 10): Promise<NationalId[]> {
-  return this.nationalIdRepo.find({
-    order: { issuedAt: 'DESC' },
-    take: limit,
-  });
-}
+  async getRecentIssued(limit: number = 10): Promise<NationalId[]> {
+    return this.nationalIdRepo.find({
+      order: { issuedAt: 'DESC' },
+      take: limit,
+    });
+  }
 
-// Get pending applications count
-async getPendingCount(): Promise<number> {
-  return this.nationalIdAppRepo.count({
-    where: { status: ApplicationStatus.PENDING }
-  });
-}
+  async getPendingCount(): Promise<number> {
+    return this.nationalIdAppRepo.count({
+      where: { status: ApplicationStatus.PENDING }
+    });
+  }
 
-  // ✅ This method creates a final issued ID after approval
+  //id number izikhala number nd letters
+  private generateNationalIdNumber(): string {
+    return this.generateAlphanumeric(8);
+  }
+
+  private generateAlphanumeric(length: number): string {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let result = '';
+    for (let i = 0; i < length; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+  }
+
   async issueNationalId(applicationId: string): Promise<NationalId> {
     const application = await this.findOne(applicationId);
     
@@ -272,7 +260,6 @@ async getPendingCount(): Promise<number> {
       throw new BadRequestException('Application must be approved first');
     }
     
-    // Generate unique national ID number
     const nationalIdNumber = this.generateNationalIdNumber();
     
     const newNationalId = this.nationalIdRepo.create({
@@ -289,40 +276,24 @@ async getPendingCount(): Promise<number> {
       issuedAt: new Date(),
     });
     
-    // Update application status
     application.status = ApplicationStatus.COMPLETED;
     await this.nationalIdAppRepo.save(application);
     
     return this.nationalIdRepo.save(newNationalId);
   }
 
-  private generateNationalIdNumber(): string {
-    // Generate a unique national ID number
-    // Format: YYMMDD + random 6 digits
-    const date = new Date();
-    const yy = date.getFullYear().toString().slice(-2);
-    const mm = (date.getMonth() + 1).toString().padStart(2, '0');
-    const dd = date.getDate().toString().padStart(2, '0');
-    const random = Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
-    return `${yy}${mm}${dd}${random}`;
-  }
-
   async generateReport(startDate: Date, endDate: Date) {
     const applications = await this.nationalIdAppRepo.find({
       where: {
-        createdAt: {
-          // Using Between operator - handled by filter below
-        } as any,
+        createdAt: {} as any,
       },
       order: { createdAt: 'ASC' },
     });
 
-    // Filter by date range
     const filtered = applications.filter(app => 
       app.createdAt >= startDate && app.createdAt <= endDate
     );
 
-    // Generate Excel/PDF report
     return this.generateExcelReport(filtered);
   }
 
@@ -354,13 +325,10 @@ async getPendingCount(): Promise<number> {
   }
 
   private async uploadToStorage(file: Express.Multer.File): Promise<string> {
-    // Implement your storage solution (local, S3, etc.)
-    // For now, return a placeholder URL
     return `https://your-storage.com/documents/${Date.now()}-${file.originalname}`;
   }
 
   private async generateExcelReport(data: any[]) {
-    // Simple implementation - you can expand this
     const ExcelJS = require('exceljs');
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet('National ID Applications');
@@ -387,88 +355,77 @@ async getPendingCount(): Promise<number> {
       });
     });
     
-    
     const buffer = await workbook.xlsx.writeBuffer();
     return buffer;
   }
-  // Add these methods to your NationalIdService
 
-// ✅ Approve application and generate ID number
-async approveApplication(id: string, approvedBy: string): Promise<NationalIdApplication> {
-  const application = await this.findOne(id);
-  
-  if (application.status !== 'VERIFIED') {
-    throw new BadRequestException('Application must be verified before approval');
-  }
-  
-  // Generate National ID number
-  const nationalIdNumber = this.generateNationalIdNumber();
-  
-  // Create issued National ID
-  const newNationalId = this.nationalIdRepo.create({
-    nationalIdNumber,
-    firstName: application.firstName,
-    surname: application.surname,
-    dateOfBirth: application.dateOfBirth,
-    gender: application.gender,
-    placeOfBirth: application.districtOfBirth,
-    fatherName: application.fatherFullName,
-    motherName: application.motherFullName,
-    address: application.residentialVillage,
-    isValid: true,
-    issuedAt: new Date(),
-  });
-  
-  await this.nationalIdRepo.save(newNationalId);
-  
-  // Update application status
-  application.status = 'APPROVED';
-  application.rejectionReason = null;
-  await this.nationalIdAppRepo.save(application);
-  
-  // Create verification log
-  await this.createVerificationLog(id, 'Application Approved', `Approved by: ${approvedBy}. ID Number: ${nationalIdNumber}`);
-  
-  return application;
-}
-
-// ✅ Reject application
-async rejectApplication(id: string, reason: string, rejectedBy: string): Promise<NationalIdApplication> {
-  const application = await this.findOne(id);
-  
-  if (application.status !== 'PENDING' && application.status !== 'VERIFIED') {
-    throw new BadRequestException('Only pending or verified applications can be rejected');
-  }
-  
-  application.status = 'REJECTED';
-  application.rejectionReason = reason;
-  await this.nationalIdAppRepo.save(application);
-  
-  // Create verification log
-  await this.createVerificationLog(id, 'Application Rejected', `Rejected by: ${rejectedBy}. Reason: ${reason}`);
-  
-  return application;
-}
-// Add this method to your NationalIdService class
-
-// ✅ Find issued National ID by application ID
-async findByApplicationId(applicationId: string): Promise<NationalId | null> {
-  // Since there's no direct relation, find by matching personal details
-  const application = await this.findOne(applicationId);
-  if (!application) return null;
-  
-  return this.nationalIdRepo.findOne({ 
-    where: {
+  async approveApplication(id: string, approvedBy: string): Promise<NationalIdApplication> {
+    const application = await this.findOne(id);
+    
+    if (application.status !== 'VERIFIED') {
+      throw new BadRequestException('Application must be verified before approval');
+    }
+    
+    const nationalIdNumber = this.generateNationalIdNumber();
+    
+    const newNationalId = this.nationalIdRepo.create({
+      nationalIdNumber,
       firstName: application.firstName,
       surname: application.surname,
       dateOfBirth: application.dateOfBirth,
+      gender: application.gender,
+      placeOfBirth: application.districtOfBirth,
+      fatherName: application.fatherFullName,
+      motherName: application.motherFullName,
+      address: application.residentialVillage,
+      isValid: true,
+      issuedAt: new Date(),
+    });
+    
+    await this.nationalIdRepo.save(newNationalId);
+    
+    application.status = 'APPROVED';
+    application.rejectionReason = null;
+    await this.nationalIdAppRepo.save(application);
+    
+    await this.createVerificationLog(id, 'Application Approved', `Approved by: ${approvedBy}. ID Number: ${nationalIdNumber}`);
+    
+    return application;
+  }
+
+  async rejectApplication(id: string, reason: string, rejectedBy: string): Promise<NationalIdApplication> {
+    const application = await this.findOne(id);
+    
+    if (application.status !== 'PENDING' && application.status !== 'VERIFIED') {
+      throw new BadRequestException('Only pending or verified applications can be rejected');
     }
-  });
-}
-async getAllApplicationsForAdmin(): Promise<NationalIdApplication[]> {
-  return this.nationalIdAppRepo.find({
-    relations: ['supportingDocuments', 'verificationLogs'],
-    order: { createdAt: 'DESC' },
-  });
-}
+    
+    application.status = 'REJECTED';
+    application.rejectionReason = reason;
+    await this.nationalIdAppRepo.save(application);
+    
+    await this.createVerificationLog(id, 'Application Rejected', `Rejected by: ${rejectedBy}. Reason: ${reason}`);
+    
+    return application;
+  }
+
+  async findByApplicationId(applicationId: string): Promise<NationalId | null> {
+    const application = await this.findOne(applicationId);
+    if (!application) return null;
+    
+    return this.nationalIdRepo.findOne({ 
+      where: {
+        firstName: application.firstName,
+        surname: application.surname,
+        dateOfBirth: application.dateOfBirth,
+      }
+    });
+  }
+
+  async getAllApplicationsForAdmin(): Promise<NationalIdApplication[]> {
+    return this.nationalIdAppRepo.find({
+      relations: ['supportingDocuments', 'verificationLogs'],
+      order: { createdAt: 'DESC' },
+    });
+  }
 }
