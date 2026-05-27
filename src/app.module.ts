@@ -12,7 +12,6 @@ import { VerificationModule } from './verification/verification.module';
     ConfigModule.forRoot({
       isGlobal: true,
     }),
-    // ✅ Database configuration
     TypeOrmModule.forRoot({
       type: 'postgres',
       url: process.env.DATABASE_URL || process.env.POSTGRES_URL,
@@ -22,7 +21,6 @@ import { VerificationModule } from './verification/verification.module';
         rejectUnauthorized: false,
       },
     }),
-    // ✅ Your feature modules
     NationalIdModule,
     DeathModule,
     VerificationModule,
