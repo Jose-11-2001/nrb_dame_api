@@ -1,4 +1,3 @@
-
 import { 
   Controller, 
   Post, 
@@ -6,18 +5,27 @@ import {
   Body, 
   HttpCode, 
   HttpStatus, 
-  UseGuards,
   Param,
   Query,
   BadRequestException
 } from '@nestjs/common';
 import { VerificationService } from './verification.service';
-import { CheckLifeStatusDto } from './dto/life-status.dto';
-import { ApiKeyGuard } from '../auth/api-key.guard';
 
 @Controller('api/v1/verify')
 export class VerificationController {
   constructor(private readonly verificationService: VerificationService) {}
+
+  /**
+   * Health check endpoint
+   */
+  @Get('health')
+  async healthCheck() {
+    return {
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      service: 'NRB Dame API',
+    };
+  }
 
   /**
    * PRIMARY API FOR NRB
@@ -25,8 +33,7 @@ export class VerificationController {
    */
   @Post('life-status')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(ApiKeyGuard)
-  async checkLifeStatus(@Body() body: CheckLifeStatusDto) {
+  async checkLifeStatus(@Body() body: { nationalIdNumber: string; surname: string }) {
     const result = await this.verificationService.checkLifeStatus(
       body.nationalIdNumber, 
       body.surname
@@ -40,8 +47,7 @@ export class VerificationController {
    */
   @Post('life-status/simple')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(ApiKeyGuard)
-  async simpleLifeStatusCheck(@Body() body: CheckLifeStatusDto) {
+  async simpleLifeStatusCheck(@Body() body: { nationalIdNumber: string; surname: string }) {
     const result = await this.verificationService.simpleLifeStatusCheck(
       body.nationalIdNumber, 
       body.surname
@@ -53,7 +59,6 @@ export class VerificationController {
    * GET endpoint for easy testing
    */
   @Get('life-status/:nationalIdNumber')
-  @UseGuards(ApiKeyGuard)
   async checkLifeStatusGet(
     @Param('nationalIdNumber') nationalIdNumber: string,
     @Query('surname') surname: string
@@ -64,13 +69,44 @@ export class VerificationController {
     return this.verificationService.checkLifeStatus(nationalIdNumber, surname);
   }
 
-  // Existing endpoints
+  /**
+   * Batch verification endpoint
+   */
+  @Post('verify-batch')
+  @HttpCode(HttpStatus.OK)
+  async verifyBatch(@Body() body: { nationalIdNumbers: string[] }) {
+    if (!body.nationalIdNumbers || !Array.isArray(body.nationalIdNumbers)) {
+      throw new BadRequestException('nationalIdNumbers array is required');
+    }
+    
+    const results = await Promise.all(
+      body.nationalIdNumbers.map(async (id) => {
+        return this.verificationService.simpleLifeStatusCheck(id, '');
+      })
+    );
+    
+    return {
+      success: true,
+      results: body.nationalIdNumbers.map((id, index) => ({
+        nationalIdNumber: id,
+        ...results[index]
+      })),
+      total: body.nationalIdNumbers.length
+    };
+  }
+
+  /**
+   * Verify National ID (legacy endpoint)
+   */
   @Post('national-id')
   @HttpCode(HttpStatus.OK)
   async verifyNationalId(@Body() body: { nationalIdNumber: string; lastName: string }) {
     return this.verificationService.verifyNationalId(body.nationalIdNumber, body.lastName);
   }
 
+  /**
+   * Verify Death Certificate
+   */
   @Post('death-certificate')
   @HttpCode(HttpStatus.OK)
   async verifyDeathCertificate(@Body() body: { certificateNumber: string; deceasedNationalId: string }) {

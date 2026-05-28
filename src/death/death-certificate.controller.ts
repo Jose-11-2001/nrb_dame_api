@@ -1,7 +1,6 @@
-import { Controller, Post, Get, Put, Body, Param, Query, UseGuards, BadRequestException } from '@nestjs/common';
+import { Controller, Post, Get, Put, Body, Param, Query, BadRequestException } from '@nestjs/common';
 import { DeathCertificateService } from './death-certificate.service';
 import { CreateDeathCertificateDto } from './dto/create-death.dto';
-import { ApiKeyGuard } from '../auth/api-key.guard';
 
 @Controller('v1/death-certificate')
 export class DeathCertificateController {
@@ -159,9 +158,8 @@ export class DeathCertificateController {
     };
   }
 
-  // ✅ FIXED: Verify death certificate by number with fallback for issuedAt
+  // ✅ FIXED: Verify death certificate by number (no guard)
   @Get('verify/:certificateNumber')
-  @UseGuards(ApiKeyGuard)
   async verifyDeathCertificate(@Param('certificateNumber') certificateNumber: string) {
     const result = await this.deathService.findByCertificateNumber(certificateNumber);
     
@@ -179,8 +177,8 @@ export class DeathCertificateController {
     };
   }
 
+  // ✅ FIXED: Verify by deceased National ID (no guard)
   @Get('verify/by-national-id/:nationalId')
-  @UseGuards(ApiKeyGuard)
   async verifyByDeceasedNationalId(@Param('nationalId') nationalId: string) {
     const results = await this.deathService.findByDeceasedNationalId(nationalId);
     

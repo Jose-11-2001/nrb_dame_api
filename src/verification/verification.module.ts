@@ -6,9 +6,10 @@ import { NationalId } from '../nationa_id/entities/national-id.entity';
 import { DeathCertificate } from '../death/entities/death-certificate.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([NationalId, DeathCertificate])],
+  imports: [
+    TypeOrmModule.forFeature([NationalId, DeathCertificate]),
+  ],
   controllers: [VerificationController],
   providers: [VerificationService],
-  exports: [VerificationService],
 })
 export class VerificationModule {}

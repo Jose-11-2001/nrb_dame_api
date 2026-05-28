@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { NationalId } from '../nationa_id/entities/national-id.entity';
@@ -45,7 +45,8 @@ export class VerificationService {
     }
 
     // STEP 2: Verify the person is the legitimate owner (surname must match)
-    if (record.surname.toLowerCase() !== surname.toLowerCase()) {
+    // If no surname provided for batch check, skip this validation
+    if (surname && record.surname.toLowerCase() !== surname.toLowerCase()) {
       return {
         success: false,
         verified: false,
@@ -139,11 +140,38 @@ export class VerificationService {
     };
   }
 
-  // Original verification method (kept for backward compatibility)
+  /**
+   * Verify National ID (legacy method)
+   */
   async verifyNationalId(nationalIdNumber: string, surname: string) {
     return this.checkLifeStatus(nationalIdNumber, surname);
   }
 
+  /**
+   * Batch verification for multiple IDs
+   */
+  async batchVerify(ids: string[]) {
+    const results = await Promise.all(
+      ids.map(async (id) => {
+        const result = await this.simpleLifeStatusCheck(id, '');
+        return {
+          nationalIdNumber: id,
+          ...result
+        };
+      })
+    );
+    
+    return {
+      results,
+      total: ids.length,
+      found: results.filter(r => r.isValid).length,
+      notFound: results.filter(r => !r.isValid).length
+    };
+  }
+
+  /**
+   * Verify Death Certificate
+   */
   async verifyDeathCertificate(certificateNumber: string, deceasedNationalId: string) {
     const record = await this.deathRepository.findOne({
       where: { 

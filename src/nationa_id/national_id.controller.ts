@@ -11,19 +11,17 @@ import {
   Res,
   StreamableFile,
   BadRequestException,
-  UseGuards
+  Head
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
 import { NationalIdService } from './national_id.service';
 import { CreateNationalIdDto } from './dto/create-national_id.dto';
-import { ApiKeyGuard } from '../auth/api-key.guard';
 
 @Controller('v1/national-id')
 export class NationalIdController {
   constructor(private readonly nationalIdService: NationalIdService) {}
 
-  // ✅ CREATE new application
   @Post()
   async create(@Body() createDto: CreateNationalIdDto) {
     const application = await this.nationalIdService.create(createDto);
@@ -34,7 +32,6 @@ export class NationalIdController {
     };
   }
 
-  // ✅ UPLOAD documents for an application
   @Post(':id/documents')
   @UseInterceptors(FileInterceptor('document'))
   async uploadDocument(
@@ -54,15 +51,12 @@ export class NationalIdController {
     };
   }
 
-  // ✅ GET all applications (with filters)
   @Get()
   async findAll(
     @Query('status') status?: string,
     @Query('district') district?: string,
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
-    @Query('page') page?: string,
-    @Query('limit') limit?: string,
   ) {
     const filters: any = {};
     if (status) filters.status = status;
@@ -90,7 +84,6 @@ export class NationalIdController {
     };
   }
 
-  // ✅ GET single application by ID
   @Get('application/:id')
   async findOne(@Param('id') id: string) {
     const application = await this.nationalIdService.findOne(id);
@@ -100,7 +93,6 @@ export class NationalIdController {
     };
   }
 
-  // ✅ GET issued National ID by ID
   @Get('issued/:id')
   async findIssuedId(@Param('id') id: string) {
     const nationalId = await this.nationalIdService.findIssuedIdById(id);
@@ -111,7 +103,6 @@ export class NationalIdController {
     };
   }
 
-  // ✅ SEARCH by surname
   @Get('search/by-surname/:surname')
   async searchBySurname(@Param('surname') surname: string) {
     const results = await this.nationalIdService.findBySurname(surname);
@@ -122,7 +113,6 @@ export class NationalIdController {
     };
   }
 
-  // ✅ GET dashboard statistics
   @Get('stats/dashboard')
   async getDashboardStats() {
     const stats = await this.nationalIdService.getStatistics();
@@ -139,9 +129,7 @@ export class NationalIdController {
     };
   }
 
-  // ✅ VERIFY endpoint (with surname query parameter)
   @Get('verify/:nationalIdNumber')
-  @UseGuards(ApiKeyGuard)
   async verifyNationalId(
     @Param('nationalIdNumber') nationalIdNumber: string,
     @Query('surname') surname: string,
@@ -160,9 +148,7 @@ export class NationalIdController {
     };
   }
 
-  // ✅ BULK verification endpoint
   @Post('verify/batch')
-  @UseGuards(ApiKeyGuard)
   async verifyMultipleNationalIds(@Body() body: { nationalIdNumbers: string[] }) {
     if (!body.nationalIdNumbers || !Array.isArray(body.nationalIdNumbers)) {
       throw new BadRequestException('nationalIdNumbers array is required');
@@ -184,7 +170,6 @@ export class NationalIdController {
     return { results, total: results.length };
   }
 
-  // ✅ VILLAGE HEAD verification
   @Put(':id/verify-village')
   async verifyByVillageHead(
     @Param('id') id: string,
@@ -207,7 +192,6 @@ export class NationalIdController {
     };
   }
 
-  // ✅ APPROVE application (Admin)
   @Post(':id/approve')
   async approveApplication(
     @Param('id') id: string,
@@ -218,8 +202,6 @@ export class NationalIdController {
     }
     
     const application = await this.nationalIdService.approveApplication(id, approvedBy);
-    
-    // Get the issued ID number
     const issuedId = await this.nationalIdService.findByApplicationId(id);
     
     return {
@@ -230,7 +212,6 @@ export class NationalIdController {
     };
   }
 
-  // ✅ REJECT application (Admin)
   @Post(':id/reject')
   async rejectApplication(
     @Param('id') id: string,
@@ -250,7 +231,6 @@ export class NationalIdController {
     };
   }
 
-  // ✅ GET all applications for admin
   @Get('admin/all')
   async getAllForAdmin() {
     const applications = await this.nationalIdService.getAllApplicationsForAdmin();
@@ -261,7 +241,6 @@ export class NationalIdController {
     };
   }
 
-  // ✅ ISSUE National ID (for admin)
   @Post(':id/issue')
   async issueNationalId(@Param('id') id: string) {
     const nationalId = await this.nationalIdService.issueNationalId(id);
@@ -273,7 +252,6 @@ export class NationalIdController {
     };
   }
 
-  // ✅ DEBUG: Get all applications (for testing)
   @Get('debug/all')
   async debugAll() {
     const all = await this.nationalIdService.findAll({});
@@ -284,7 +262,6 @@ export class NationalIdController {
     };
   }
 
-  // ✅ DOWNLOAD report
   @Get('reports/download')
   async downloadReport(
     @Query('startDate') startDate: string,
@@ -306,5 +283,121 @@ export class NationalIdController {
     });
     
     return new StreamableFile(report);
+  }
+
+  // ============ NEW ID VERIFICATION ENDPOINTS ============
+
+  @Get('check/:nationalIdNumber')
+  async checkIdExists(@Param('nationalIdNumber') nationalIdNumber: string) {
+    if (!nationalIdNumber || nationalIdNumber.length < 3) {
+      throw new BadRequestException('Valid National ID number is required');
+    }
+    
+    const result = await this.nationalIdService.checkIdExists(nationalIdNumber);
+    
+    return {
+      success: true,
+      data: result,
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  @Post('check/batch')
+  async checkMultipleIdsExist(@Body() body: { nationalIdNumbers: string[] }) {
+    if (!body.nationalIdNumbers || !Array.isArray(body.nationalIdNumbers)) {
+      throw new BadRequestException('nationalIdNumbers array is required');
+    }
+    
+    if (body.nationalIdNumbers.length === 0) {
+      throw new BadRequestException('At least one national ID number is required');
+    }
+    
+    if (body.nationalIdNumbers.length > 100) {
+      throw new BadRequestException('Maximum 100 IDs per batch request');
+    }
+    
+    const result = await this.nationalIdService.checkMultipleIdsExist(body.nationalIdNumbers);
+    
+    return {
+      success: true,
+      data: result,
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  @Head('check/:nationalIdNumber')
+  async quickCheckExists(
+    @Param('nationalIdNumber') nationalIdNumber: string,
+    @Res() res: Response,
+  ) {
+    const result = await this.nationalIdService.checkIdExists(nationalIdNumber);
+    
+    if (result.exists && result.isValid) {
+      res.status(200).send();
+    } else if (result.exists && !result.isValid) {
+      res.status(410).send();
+    } else {
+      res.status(404).send();
+    }
+  }
+
+  @Get('search/by-id/:partialNumber')
+  async searchByPartialId(@Param('partialNumber') partialNumber: string) {
+    if (!partialNumber || partialNumber.length < 3) {
+      throw new BadRequestException('Please provide at least 3 characters for search');
+    }
+    
+    const results = await this.nationalIdService.searchByPartialId(partialNumber);
+    
+    return {
+      success: true,
+      data: results,
+      count: results.length,
+      message: results.length === 0 ? 'No matching IDs found' : `${results.length} ID(s) found`,
+    };
+  }
+
+  @Get('details/:nationalIdNumber')
+  async getIdDetails(@Param('nationalIdNumber') nationalIdNumber: string) {
+    if (!nationalIdNumber) {
+      throw new BadRequestException('National ID number is required');
+    }
+    
+    const details = await this.nationalIdService.getIdDetails(nationalIdNumber);
+    
+    if (!details) {
+      return {
+        success: false,
+        message: 'National ID not found',
+        data: null,
+      };
+    }
+    
+    return {
+      success: true,
+      message: 'ID details retrieved successfully',
+      data: {
+        nationalIdNumber: details.nationalIdNumber,
+        fullName: `${details.firstName} ${details.surname}`,
+        firstName: details.firstName,
+        surname: details.surname,
+        dateOfBirth: details.dateOfBirth,
+        gender: details.gender,
+        isDeceased: details.isDeceased,
+        issuedAt: details.issuedAt,
+        isValid: details.isValid,
+      },
+    };
+  }
+
+  @Get('deceased-check/:nationalIdNumber')
+  async checkDeceased(@Param('nationalIdNumber') nationalIdNumber: string) {
+    const result = await this.nationalIdService.checkIfDeceased(nationalIdNumber);
+    
+    return {
+      success: true,
+      data: result,
+      timestamp: new Date().toISOString(),
+    };
   }
 }

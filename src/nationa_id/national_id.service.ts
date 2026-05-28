@@ -239,7 +239,6 @@ export class NationalIdService {
     });
   }
 
-  // ✅ Generate alphanumeric string
   private generateAlphanumeric(length: number): string {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
     let result = '';
@@ -249,38 +248,28 @@ export class NationalIdService {
     return result;
   }
 
-  // ✅ Generate unique National ID number (checks for existence and deceased status)
   private async generateUniqueNationalIdNumber(): Promise<string> {
     let attempts = 0;
-    const maxAttempts = 10; // Prevent infinite loop
+    const maxAttempts = 10;
     
     while (attempts < maxAttempts) {
-      // Generate a random 8-character alphanumeric ID
       const candidateId = this.generateAlphanumeric(8);
-      
-      // Check if this ID already exists in the database
       const existingId = await this.nationalIdRepo.findOne({
         where: { nationalIdNumber: candidateId }
       });
       
-      // If ID doesn't exist, it's available for use
       if (!existingId) {
         return candidateId;
       }
       
-      // ID exists, check if the person is deceased
       if (existingId.isDeceased) {
-        // ID belongs to a deceased person - cannot reuse
         console.log(`ID ${candidateId} belongs to deceased person, generating new one...`);
         attempts++;
         continue;
       }
-      
-      // ID exists and person is alive - regenerate (shouldn't happen with random)
       attempts++;
     }
     
-    // If we can't generate a unique ID after max attempts, throw error
     throw new BadRequestException('Unable to generate unique National ID. Please try again.');
   }
 
@@ -291,7 +280,6 @@ export class NationalIdService {
       throw new BadRequestException('Application must be approved first');
     }
     
-    // Generate unique National ID number with uniqueness check
     const nationalIdNumber = await this.generateUniqueNationalIdNumber();
     
     const newNationalId = this.nationalIdRepo.create({
@@ -316,9 +304,6 @@ export class NationalIdService {
 
   async generateReport(startDate: Date, endDate: Date) {
     const applications = await this.nationalIdAppRepo.find({
-      where: {
-        createdAt: {} as any,
-      },
       order: { createdAt: 'ASC' },
     });
 
@@ -398,7 +383,6 @@ export class NationalIdService {
       throw new BadRequestException('Application must be verified before approval');
     }
     
-    
     const nationalIdNumber = await this.generateUniqueNationalIdNumber();
     
     const newNationalId = this.nationalIdRepo.create({
@@ -460,5 +444,194 @@ export class NationalIdService {
       relations: ['supportingDocuments', 'verificationLogs'],
       order: { createdAt: 'DESC' },
     });
+  }
+
+  // ============ NEW ID VERIFICATION METHODS ============
+
+  async checkIdExists(nationalIdNumber: string): Promise<{
+    exists: boolean;
+    isValid: boolean;
+    isDeceased: boolean;
+    message: string;
+    data?: {
+      fullName: string;
+      surname: string;
+      firstName: string;
+      dateOfBirth: Date;
+      nationality: string;
+      district?: string;
+      village?: string;
+      gender?: string;
+      placeOfBirth?: string;
+    };
+  }> {
+    const nationalId = await this.nationalIdRepo.findOne({
+      where: { nationalIdNumber, isValid: true },
+    });
+
+    if (nationalId) {
+      return {
+        exists: true,
+        isValid: true,
+        isDeceased: nationalId.isDeceased || false,
+        message: 'National ID exists and is valid',
+        data: {
+          fullName: `${nationalId.firstName} ${nationalId.surname}`,
+          surname: nationalId.surname,
+          firstName: nationalId.firstName,
+          dateOfBirth: nationalId.dateOfBirth,
+          nationality: (nationalId as any).nationality || 'Malawian',
+          district: (nationalId as any).district,
+          village: (nationalId as any).address || (nationalId as any).village,
+          gender: nationalId.gender,
+          placeOfBirth: (nationalId as any).placeOfBirth,
+        },
+      };
+    }
+
+    const invalidId = await this.nationalIdRepo.findOne({
+      where: { nationalIdNumber, isValid: false },
+    });
+
+    if (invalidId) {
+      return {
+        exists: true,
+        isValid: false,
+        isDeceased: invalidId.isDeceased || false,
+        message: 'National ID exists but is invalid (revoked or expired)',
+        data: {
+          fullName: `${invalidId.firstName} ${invalidId.surname}`,
+          surname: invalidId.surname,
+          firstName: invalidId.firstName,
+          dateOfBirth: invalidId.dateOfBirth,
+          nationality: (invalidId as any).nationality || 'Malawian',
+          district: (invalidId as any).district,
+          village: (invalidId as any).address || (invalidId as any).village,
+          gender: invalidId.gender,
+          placeOfBirth: (invalidId as any).placeOfBirth,
+        },
+      };
+    }
+
+    const existingApplication = await this.nationalIdAppRepo.findOne({
+      where: [
+        { applicationNumber: nationalIdNumber },
+      ],
+    });
+
+    if (existingApplication && existingApplication.status === 'APPROVED') {
+      return {
+        exists: true,
+        isValid: true,
+        isDeceased: false,
+        message: 'Application approved, National ID will be issued soon',
+        data: {
+          fullName: `${existingApplication.firstName} ${existingApplication.surname}`,
+          surname: existingApplication.surname,
+          firstName: existingApplication.firstName,
+          dateOfBirth: existingApplication.dateOfBirth,
+          nationality: 'Malawian',
+          district: existingApplication.residentialDistrict,
+          village: existingApplication.residentialVillage,
+          gender: existingApplication.gender,
+          placeOfBirth: existingApplication.districtOfBirth,
+        },
+      };
+    }
+
+    return {
+      exists: false,
+      isValid: false,
+      isDeceased: false,
+      message: 'National ID number not found in the system',
+    };
+  }
+
+  async checkMultipleIdsExist(nationalIdNumbers: string[]): Promise<{
+    results: Array<{
+      nationalIdNumber: string;
+      exists: boolean;
+      isValid: boolean;
+      isDeceased: boolean;
+      fullName: string | null;
+      message: string;
+      details?: any;
+    }>;
+    total: number;
+    found: number;
+    notFound: number;
+  }> {
+    const results = await Promise.all(
+      nationalIdNumbers.map(async (idNumber) => {
+        const result = await this.checkIdExists(idNumber);
+        return {
+          nationalIdNumber: idNumber,
+          exists: result.exists,
+          isValid: result.isValid,
+          isDeceased: result.isDeceased,
+          fullName: result.data?.fullName || null,
+          message: result.message,
+          details: result.data || null,
+        };
+      })
+    );
+
+    const found = results.filter(r => r.exists).length;
+    const notFound = results.filter(r => !r.exists).length;
+
+    return {
+      results,
+      total: results.length,
+      found,
+      notFound,
+    };
+  }
+
+  async searchByPartialId(partialNumber: string): Promise<NationalId[]> {
+    return this.nationalIdRepo
+      .createQueryBuilder('id')
+      .where('id.nationalIdNumber ILIKE :partial', { partial: `%${partialNumber}%` })
+      .andWhere('id.isValid = :isValid', { isValid: true })
+      .orderBy('id.nationalIdNumber', 'ASC')
+      .take(20)
+      .getMany();
+  }
+
+  async getIdDetails(nationalIdNumber: string): Promise<NationalId | null> {
+    return this.nationalIdRepo.findOne({
+      where: { nationalIdNumber, isValid: true },
+    });
+  }
+
+  async checkIfDeceased(nationalIdNumber: string): Promise<{
+    isDeceased: boolean;
+    dateOfDeath?: Date;
+    deathCertificateNumber?: string;
+    message: string;
+  }> {
+    const nationalId = await this.nationalIdRepo.findOne({
+      where: { nationalIdNumber },
+    });
+
+    if (!nationalId) {
+      return {
+        isDeceased: false,
+        message: 'National ID not found in the system',
+      };
+    }
+
+    if (nationalId.isDeceased) {
+      return {
+        isDeceased: true,
+        dateOfDeath: (nationalId as any).dateOfDeath,
+        deathCertificateNumber: (nationalId as any).deathCertificateNumber,
+        message: 'This person is recorded as deceased',
+      };
+    }
+
+    return {
+      isDeceased: false,
+      message: 'This person is alive',
+    };
   }
 }
